@@ -10,18 +10,22 @@ This bot implements the 24h low range buying strategy:
    - NO SELLING - Buy-only bot that accumulates positions
 
 Strategy:
-- Buy Signal: Price within 0.15% of 24h low
+- Buy Signal: Price within 0.05% of 24h low
 - No Selling: Buy-only accumulation strategy
 - Timeframe: 1-minute candles with 24h rolling window
 - Check Frequency: Every 60 seconds
 - Order Type: Market orders for immediate execution
 - Coins: BTC, AVAX (Hyperliquid supported)
+
+Improvements
+- add buy block time, only 1 buy per hour. to avoid serveral entrie points at same time range.
+- check last buy timestamp distance must above 60min to enable buy again.
 """
 
 import sys
 import os
 import time
-from datetime import datetime
+from datetime import datetime, timedelta
 from typing import Dict, List, Optional
 
 # Add executer directory to path
@@ -50,7 +54,7 @@ class TradingBotV01:
         self.api_url = constants.TESTNET_API_URL if use_testnet else constants.MAINNET_API_URL
         
         # Initialize 24h low analyzer
-        self.low_analyzer = LowPriceAnalyzer(range_percentage=0.15)
+        self.low_analyzer = LowPriceAnalyzer(range_percentage=0.05)
         self.low_analyzer.set_log_callback(self.log)
         
         # Trading configuration
@@ -71,6 +75,10 @@ class TradingBotV01:
             'XRP': 'XRP',
             'PAXG': 'PAXG'
         }
+        
+        # Buy block time tracking - prevent multiple buys within 60 minutes
+        self.last_buy_timestamps = {}  # coin -> datetime of last buy
+        self.buy_block_minutes = 60  # Block new buys for 60 minutes after last buy
 
     def _setup_exchange(self):
         """Setup exchange connection"""
@@ -189,6 +197,48 @@ class TradingBotV01:
         
         return can_buy, current_value, remaining_capacity
 
+    def can_buy_time_wise(self, coin: str) -> tuple[bool, Optional[str]]:
+        """
+        Check if enough time has passed since last buy for this coin (buy block time)
+        
+        Args:
+            coin: Coin symbol (e.g., 'BTC', 'AVAX')
+            
+        Returns:
+            Tuple of (can_buy_time_wise, time_remaining_message)
+        """
+        if coin not in self.last_buy_timestamps:
+            # No previous buy recorded, can buy
+            return True, None
+        
+        last_buy_time = self.last_buy_timestamps[coin]
+        current_time = datetime.now()
+        time_since_last_buy = current_time - last_buy_time
+        
+        # Check if enough time has passed (60 minutes)
+        required_wait = timedelta(minutes=self.buy_block_minutes)
+        
+        if time_since_last_buy >= required_wait:
+            return True, None
+        else:
+            # Calculate remaining time
+            remaining_time = required_wait - time_since_last_buy
+            remaining_minutes = int(remaining_time.total_seconds() / 60)
+            remaining_seconds = int(remaining_time.total_seconds() % 60)
+            
+            time_msg = f"Buy blocked - {remaining_minutes}m {remaining_seconds}s remaining (last buy: {last_buy_time.strftime('%H:%M:%S')})"
+            return False, time_msg
+
+    def record_buy_timestamp(self, coin: str):
+        """
+        Record the timestamp of a successful buy for buy block time tracking
+        
+        Args:
+            coin: Coin symbol (e.g., 'BTC', 'AVAX')
+        """
+        self.last_buy_timestamps[coin] = datetime.now()
+        self.log(f"🕒 {coin}: Buy timestamp recorded - next buy allowed after {self.buy_block_minutes} minutes")
+
     def get_tick_size_price(self, coin: str, target_price: float) -> float:
         """Round price to valid tick size"""
         if coin == "ETH":
@@ -267,6 +317,7 @@ class TradingBotV01:
         coin = analysis['coin']
         has_pos = self.has_position(coin)
         can_buy_more, current_value, remaining_capacity = self.can_buy_more(coin)
+        can_buy_time_wise, time_block_msg = self.can_buy_time_wise(coin)
         
         result = {
             'coin': coin,
@@ -282,8 +333,8 @@ class TradingBotV01:
         }
         
         # Buy-only bot: Only create buy orders, never sell
-        # Buy if: buy signal AND can buy more (within position limit)
-        if analysis['buy_signal'] and can_buy_more:
+        # Buy if: buy signal AND can buy more (within position limit) AND enough time has passed since last buy
+        if analysis['buy_signal'] and can_buy_more and can_buy_time_wise:
             self.log(f"🟢 {coin}: Executing market buy (Distance: {analysis['distance_from_low_pct']:.3f}%)")
             self.log(f"   💵 Current Position Value: ${current_value:.2f}")
             self.log(f"   🔄 Remaining Capacity: ${remaining_capacity:.2f}")
@@ -293,10 +344,16 @@ class TradingBotV01:
             result['success'] = order_result.get('status') == 'ok'
             result['message'] = order_result.get('error', 'Market buy executed') if not result['success'] else 'Market buy executed successfully'
             
+            # Record buy timestamp if successful
+            if result['success']:
+                self.record_buy_timestamp(coin)
+            
         # No action needed - various reasons
         else:
             if not analysis['buy_signal']:
                 result['message'] = f"No buy signal - price {analysis['distance_from_low_pct']:.3f}% above 24h low"
+            elif not can_buy_time_wise:
+                result['message'] = time_block_msg
             elif not can_buy_more:
                 if current_value >= self.max_position_value_usd:
                     result['message'] = f"Position limit reached (${current_value:.2f}/${self.max_position_value_usd:.2f})"
@@ -370,24 +427,37 @@ class TradingBotV01:
             margin_summary = user_state.get("marginSummary", {})
             
             account_value = float(margin_summary.get("accountValue", "0"))
-            total_pnl = float(margin_summary.get("totalPnl", "0"))
             
             self.log(f"💰 Account Value: ${account_value:.2f}")
-            self.log(f"📈 Total PnL: ${total_pnl:.2f}")
             
             # Show position values and limits for each coin
             self.log("📍 Position Analysis:")
             for coin_name in self.coin_mapping.keys():
                 can_buy_more, current_value, remaining_capacity = self.can_buy_more(coin_name)
+                can_buy_time_wise, time_block_msg = self.can_buy_time_wise(coin_name)
                 
+                # Position status
                 if current_value > 0:
                     remaining_trades = remaining_capacity / self.position_value_usd if remaining_capacity > 0 else 0
-                    status = "🟢 CAN BUY" if can_buy_more else "🚫 LIMIT REACHED"
-                    self.log(f"   {coin_name}: ${current_value:.2f}/${self.max_position_value_usd:.2f} | "
-                            f"Remaining: ${remaining_capacity:.2f} ({remaining_trades:.1f} trades) | {status}")
+                    position_status = "🟢 CAN BUY" if can_buy_more else "🚫 LIMIT REACHED"
+                    position_info = f"${current_value:.2f}/${self.max_position_value_usd:.2f} | Remaining: ${remaining_capacity:.2f} ({remaining_trades:.1f} trades)"
                 else:
                     max_trades = self.max_position_value_usd / self.position_value_usd
-                    self.log(f"   {coin_name}: No position | Can buy: ${self.max_position_value_usd:.2f} ({max_trades:.1f} trades)")
+                    position_status = "🟢 CAN BUY"
+                    position_info = f"No position | Can buy: ${self.max_position_value_usd:.2f} ({max_trades:.1f} trades)"
+                
+                # Time block status
+                time_status = "🟢 TIME OK" if can_buy_time_wise else "🕒 TIME BLOCKED"
+                
+                # Overall status
+                overall_status = "🟢 READY" if (can_buy_more and can_buy_time_wise) else "🚫 BLOCKED"
+                
+                self.log(f"   {coin_name}: {position_info} | {position_status}")
+                self.log(f"      Time: {time_status} | Overall: {overall_status}")
+                
+                # Show time block details if blocked
+                if not can_buy_time_wise and time_block_msg:
+                    self.log(f"      ⏰ {time_block_msg}")
                 
         except Exception as e:
             self.log(f"❌ Error getting portfolio status: {e}")
@@ -404,6 +474,7 @@ class TradingBotV01:
         self.log(f"🎯 Strategy: Buy within 0.05% of 24h low (Buy Only) - No Selling")
         self.log(f"💰 Position Value: ${self.position_value_usd} USD per trade")
         self.log(f"🎯 Max Position Value: ${self.max_position_value_usd} USD per coin")
+        self.log(f"🕒 Buy Block Time: {self.buy_block_minutes} minutes (prevents multiple buys)")
         self.log("=" * 80)
         
         cycle_count = 0
