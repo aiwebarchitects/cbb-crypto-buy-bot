@@ -45,7 +45,7 @@ This is a **simple automated crypto trading bot** that helps you buy cryptocurre
 
 ### 📊 The Strategy
 1. **Monitors** 24-hour price data for each coin
-2. **Identifies** when price is within **0.15%** of the 24-hour low
+2. **Identifies** when price is within **0.05%** of the 24-hour low
 3. **Automatically buys** $20 worth of the coin
 4. **Never sells** - this is a buy-only accumulation bot
 5. **Repeats** every 60 seconds
@@ -148,8 +148,8 @@ self.check_interval = 60                # Check every 60 seconds
 ### 🎯 Strategy Settings (in `data/24h_low_average_price_getter.py`)
 
 ```python
-# Buy when price is within 0.15% of 24h low
-range_percentage: float = 0.15
+# Buy when price is within 0.05% of 24h low
+range_percentage: float = 0.05
 ```
 
 ### 💰 Risk Management
@@ -179,7 +179,7 @@ python3 start_trading.py
 ```
 🤖 Trading Bot v0.1 Starting - Buy-Only Mode
 ⏰ Cycle Interval: 60 seconds
-🎯 Strategy: Buy within 0.15% of 24h low (Buy Only)
+🎯 Strategy: Buy within 0.05% of 24h low (Buy Only)
 💰 Position Value: $20.0 USD per trade
 🎯 Max Position Value: $140.0 USD per coin
 
