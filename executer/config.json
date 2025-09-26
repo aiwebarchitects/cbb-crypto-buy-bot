@@ -1,0 +1,18 @@
+{
+    "secret_key": "place_here_the_account_private_key_api_private_key",
+    "account_address": "place_here_the_account_address_api_account_address",
+    "multi_sig": {
+        "authorized_users": [
+            {
+                "comment": "signer 1",
+                "secret_key": "",
+                "account_address": ""
+            },
+            {
+                "comment": "signer 2",
+                "secret_key": "",
+                "account_address": ""
+            }
+        ]
+    }
+}

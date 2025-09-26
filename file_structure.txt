@@ -1,0 +1,15 @@
+cbb-crypto-buy-bot/
+├── start_trading.py
+├── example_utils.py
+├── data/
+│   └── 24h_low_average_price_getter.py
+└── executer/
+    └── config.json
+
+Dependencies:
+start_trading.py uses:
+- data/24h_low_average_price_getter.py (price analysis)
+- example_utils.py (exchange setup - returns exchange object with buy/sell methods)
+- executer/config.json (API keys, used by example_utils.py)
+
+Note: Buy functionality comes from hyperliquid.exchange.Exchange.market_open() method
