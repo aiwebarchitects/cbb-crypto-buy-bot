@@ -18,8 +18,8 @@ Strategy:
 - Coins: BTC, AVAX (Hyperliquid supported)
 
 Improvements
-- add buy block time, only 1 buy per hour. to avoid serveral entrie points at same time range.
-- check last buy timestamp distance must above 60min to enable buy again.
+- Add buy block time, only 1 buy per hour, to avoid several entry points at same time range.
+- Check last buy timestamp distance must be above 60min to enable buy again.
 """
 
 import sys
