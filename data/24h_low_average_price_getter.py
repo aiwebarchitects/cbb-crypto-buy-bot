@@ -33,6 +33,9 @@ class LowPriceAnalyzer:
         
         # Coin mapping for different exchanges
         self.coin_mapping = {
+            'BTC': 'BTCUSDT',
+            'ETH': 'ETHUSDT',
+            'SOL': 'SOLUSDT',
             'PUMP': 'PUMPUSDT',
             'ENA': 'ENAUSDT',
             'XRP': 'XRPUSDT',
