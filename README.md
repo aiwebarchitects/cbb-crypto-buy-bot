@@ -47,8 +47,9 @@ This is a **simple automated crypto trading bot** that helps you buy cryptocurre
 1. **Monitors** 24-hour price data for each coin
 2. **Identifies** when price is within **0.05%** of the 24-hour low
 3. **Automatically buys** $20 worth of the coin
-4. **Never sells** - this is a buy-only accumulation bot
-5. **Repeats** every 60 seconds
+4. **Buy block time** - prevents multiple buys within 60 minutes for same coin
+5. **Never sells** - this is a buy-only accumulation bot
+6. **Repeats** every 60 seconds
 
 ### 💡 Why This Works
 - Buying near 24h lows historically provides good entry points
