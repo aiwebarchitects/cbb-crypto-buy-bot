@@ -83,7 +83,7 @@ git clone https://github.com/aiwebarchitects/cbb-crypto-buy-bot.git
 cd cbb-crypto-buy-bot
 ```
 
-### Step 2: Install Python Dependencies
+### Step 2: Install Python3 Dependencies
 
 ```bash
 # Install required packages
@@ -163,16 +163,16 @@ range_percentage: float = 0.15
 ### Test Mode (Recommended First)
 ```bash
 # Test the price analysis (safe)
-python data/24h_low_average_price_getter.py
+python3 data/24h_low_average_price_getter.py
 
 # Run backtest (simulation only)
-python backtest/24h_low_range_backtest.py
+python3 backtest/24h_low_range_backtest.py
 ```
 
 ### Live Trading
 ```bash
 # Start the trading bot
-python start_trading.py
+python3 start_trading.py
 ```
 
 ### What You'll See
@@ -230,7 +230,7 @@ python start_trading.py
 
 **❌ Bot Stops Running**
 - Solution: Check the terminal for error messages
-- Check: Restart the bot with `python start_trading.py`
+- Check: Restart the bot with `python3 start_trading.py`
 
 ### Getting Help
 
